@@ -9,13 +9,6 @@ app.use(express.json());
 app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
 
-// Explicitly set the path to ffprobe and ffmpeg binaries
-const ffprobePath = 'C:\\ffmpeg\\bin\\ffprobe.exe'; // Update this to the actual path of ffprobe
-const ffmpegPath = 'C:\\ffmpeg\\bin\\ffmpeg.exe'; // Update this to the actual path of ffmpeg
-
-ffmpeg.setFfprobePath(ffprobePath);
-ffmpeg.setFfmpegPath(ffmpegPath);
-
 // Ensure the uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
