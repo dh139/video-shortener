@@ -16,6 +16,12 @@ const ffmpegPath = 'C:\\ffmpeg\\bin\\ffmpeg.exe'; // Update this to the actual p
 ffmpeg.setFfprobePath(ffprobePath);
 ffmpeg.setFfmpegPath(ffmpegPath);
 
+// Ensure the uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
 // Serve index.html file on root URL "/"
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -29,13 +35,12 @@ app.post('/process', async (req, res) => {
   }
 
   const videoId = ytdl.getURLVideoID(youtubeLink);
-  const outputDir = path.join(__dirname, 'uploads');
-  const videoPath = path.join(outputDir, `${videoId}.mp4`);
+  const videoPath = path.join(uploadsDir, `${videoId}.mp4`);
   const chunkDuration = 15; // 15 seconds for shorts
 
   try {
     await downloadVideo(youtubeLink, videoPath);
-    const shorts = await generateShorts(videoPath, outputDir, chunkDuration);
+    const shorts = await generateShorts(videoPath, uploadsDir, chunkDuration);
     const shortUrls = shorts.map(short => `/uploads/${short}`);
     res.json({ success: true, shortUrls }); // Return URLs instead of filenames
   } catch (error) {
