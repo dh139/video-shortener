@@ -3,16 +3,211 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>2short.ai Clone</title>
-  <link rel="stylesheet" href="css/styles.css">
+  <title>2short ai</title>
+  <link href="https://vjs.zencdn.net/7.11.4/video-js.css" rel="stylesheet">
+  <link href="https://unpkg.com/videojs-trimmer@1.1.0/dist/videojs-trimmer.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #444;
+    }
+    form {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    input[type="text"] {
+      width: 300px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #video-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    #video-player {
+      width: 100%;
+      max-width: 640px;
+    }
+    #result {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 1.2em;
+    }
+    .short-videos {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .short-video {
+      margin: 10px;
+      text-align: center;
+    }
+    .short-video video {
+      width: 100%;
+      max-width: 200px;
+    }
+    .short-video button {
+      margin-top: 5px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 4px;
+      background-color: #28a745;
+      color: white;
+      cursor: pointer;
+    }
+    .short-video button:hover {
+      background-color: #218838;
+    }
+    #loader {
+      display: none;
+      text-align: center;
+      margin-top: 20px;
+    }
+    #loader span {
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      margin: 0 5px;
+      background-color: #007bff;
+      border-radius: 50%;
+      animation: loader 1.2s infinite ease-in-out;
+    }
+    @keyframes loader {
+      0%, 20%, 80%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.5);
+      }
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>2short.ai Clone</h1>
-    <input type="text" id="youtubeLink" placeholder="Enter YouTube link">
-    <button id="processButton">Process Video</button>
-    <div id="result"></div>
+  <h1>2short Ai</h1>
+  <form id="download-form">
+    <input type="text" id="youtube-link" placeholder="Enter YouTube link" required>
+    <button type="submit">Download Video</button>
+  </form>
+
+  <div id="loader">
+    <div>Processing video...</div>
+    <div>
+      <span></span><span></span><span></span>
+    </div>
   </div>
-  <script src="js/main.js"></script>
+
+  <div id="video-container" style="display: none;">
+    <video id="video-player" class="video-js vjs-default-skin" controls preload="auto" width="640" height="264"></video>
+  </div>
+
+  <div class="short-videos" id="short-videos"></div>
+
+  <div id="result"></div>
+
+  <script src="https://vjs.zencdn.net/7.11.4/video.js"></script>
+  <script src="https://unpkg.com/videojs-trimmer@1.1.0/dist/videojs-trimmer.js"></script>
+  <script>
+    document.getElementById('download-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const youtubeLink = document.getElementById('youtube-link').value;
+      const loader = document.getElementById('loader');
+      loader.style.display = 'block'; // Show loader
+
+      const response = await fetch('/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ youtubeLink })
+      });
+
+      loader.style.display = 'none'; // Hide loader when response is received
+      const result = await response.json();
+      if (result.success) {
+        displayShorts(result.shortUrls);
+        setupVideoTrimmer(result.shortUrls[0]); // Use the first short for editing
+      } else {
+        document.getElementById('result').innerHTML = JSON.stringify(result);
+      }
+    });
+
+    function displayShorts(shortUrls) {
+      const shortVideosContainer = document.getElementById('short-videos');
+      shortVideosContainer.innerHTML = ''; // Clear previous short videos
+
+      shortUrls.forEach(url => {
+        const shortVideoElement = document.createElement('div');
+        shortVideoElement.className = 'short-video';
+
+        const videoElement = document.createElement('video');
+        videoElement.src = url;
+        videoElement.controls = true;
+        shortVideoElement.appendChild(videoElement);
+
+        const downloadButton = document.createElement('button');
+        downloadButton.textContent = 'Download';
+        downloadButton.onclick = () => {
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = url.split('/').pop();
+          link.click();
+        };
+        shortVideoElement.appendChild(downloadButton);
+
+        shortVideosContainer.appendChild(shortVideoElement);
+      });
+    }
+
+    function setupVideoTrimmer(videoUrl) {
+      const videoContainer = document.getElementById('video-container');
+      videoContainer.style.display = 'block';
+
+      const videoPlayer = videojs('video-player', {}, function() {
+        this.src({ type: 'video/mp4', src: videoUrl });
+        this.load();
+
+        this.on('loadedmetadata', () => {
+          this.trimmer({
+            controlTime: true,
+            controlLayer: true,
+          });
+
+          const trimmer = this.trimmer();
+          trimmer.on('change', async () => {
+            const startTime = trimmer.getStartTime();
+            const endTime = trimmer.getEndTime();
+            const filePath = videoUrl.split('/').pop();
+            const response = await fetch('/edit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ filePath, startTime, endTime })
+            });
+            const result = await response.json();
+            document.getElementById('result').innerHTML = JSON.stringify(result);
+          });
+        });
+      });
+    }
+  </script>
 </body>
 </html>
